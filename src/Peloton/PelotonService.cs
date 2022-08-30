@@ -20,6 +20,7 @@ namespace Peloton
 	{
 		Task<ICollection<RecentWorkout>> GetRecentWorkoutsAsync(int numWorkoutsToDownload);
 		Task<P2GWorkout[]> GetWorkoutDetailsAsync(ICollection<RecentWorkout> workoutIds);
+		Task<UserData> GetUserDataAsync();
 	}
 
 	public class PelotonService : IPelotonService
@@ -55,6 +56,15 @@ namespace Peloton
 				_logger.Error("Peloton Password required, check your configuration {@ConfigSection}.{@ConfigProperty} is set.", nameof(Peloton), nameof(config.Password));
 				throw new ArgumentException("Peloton Password must be set.", nameof(config.Password));
 			}
+		}
+
+		public async Task<UserData> GetUserDataAsync()
+		{
+			using var tracing = Tracing.Trace($"{nameof(PelotonService)}.{nameof(GetUserDataAsync)}");
+
+			await _pelotonApi.InitAuthAsync();
+
+			return await _pelotonApi.GetUserDataAsync();
 		}
 
 		public async Task<ICollection<RecentWorkout>> GetRecentWorkoutsAsync(int numWorkoutsToDownload)
@@ -115,7 +125,7 @@ namespace Peloton
 				tasks.Add(GetWorkoutDetailsAsync(workoutId));
 			}
 
-			return await Task.WhenAll(tasks);
+			return (await Task.WhenAll(tasks)).Where(t => t is object).ToArray();
 		}
 
 		private async Task<P2GWorkout> GetWorkoutDetailsAsync(string workoutId)
@@ -154,10 +164,11 @@ namespace Peloton
 			catch (Exception e)
 			{
 				_failedCount++;
+
 				var title = "workout_failed_to_deserialize_" + workoutId;
-				_logger.Error("Failed to deserialize workout from Peloton. You can find the raw data from the workout here: @FileName", title, e);
-				tracing.AddTag("exception.message", e.Message);
 				SaveRawData(data, title);
+
+				_logger.Error("Failed to deserialize workout from Peloton. You can find the raw data from the workout here: {@FileName}", title, e);
 			}
 
 			return deSerializedData;

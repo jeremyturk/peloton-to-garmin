@@ -36,24 +36,20 @@ namespace PelotonToGarminConsole
 			_settings = settings;
 			_syncService = syncService;
 
-			FlurlConfiguration.Configure(_config.Observability);
-
 			var runtimeVersion = Environment.Version.ToString();
 			var os = Environment.OSVersion.Platform.ToString();
 			var osVersion = Environment.OSVersion.VersionString;
 			var version = Constants.AppVersion;
 
 			BuildInfo.WithLabels(version, os, osVersion, runtimeVersion).Set(1);
-			_logger.Debug("App Version: {@Version}", version);
-			_logger.Debug("Operating System: {@Os}", osVersion);
-			_logger.Debug("DotNet Runtime: {@DotnetRuntime}", runtimeVersion);
+			_logger.Information("App Version: {@Version}", version);
+			_logger.Information("Operating System: {@Os}", osVersion);
+			_logger.Information("DotNet Runtime: {@DotnetRuntime}", runtimeVersion);
 		}
 
 		protected override Task ExecuteAsync(CancellationToken cancelToken)
 		{
 			_logger.Verbose("Begin.");
-
-			Health.Set(HealthStatus.Healthy);
 
 			try
 			{
@@ -64,11 +60,14 @@ namespace PelotonToGarminConsole
 			}
 			catch (Exception ex)
 			{
-				_logger.Fatal(ex, "Exception during config validation.");
+				_logger.Error(ex, "Exception during config validation. Please modify your configuration.local.json and relaunch the application.");
 				Health.Set(HealthStatus.Dead);
+				if (!_settings.App.CloseWindowOnFinish)
+					Console.ReadLine();
 				Environment.Exit(-1);
 			}
 
+			Health.Set(HealthStatus.Healthy);
 			return RunAsync(cancelToken);
 		}
 
@@ -100,6 +99,7 @@ namespace PelotonToGarminConsole
 						var syncResult = await _syncService.SyncAsync(_settings.Peloton.NumWorkoutsToDownload);
 						Health.Set(syncResult.SyncSuccess ? HealthStatus.Healthy : HealthStatus.UnHealthy);
 
+						Log.Information("Done");
 						Log.Information("Sleeping for {@Seconds} seconds...", _settings.App.PollingIntervalSeconds);
 
 						var now = DateTime.UtcNow;

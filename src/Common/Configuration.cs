@@ -32,11 +32,13 @@ namespace Common
 		public AppConfiguration()
 		{
 			Api = new ApiSettings();
+			WebUI = new WebUISettings();
 			Observability = new Observability();
 			Developer = new Developer();
 		}
 
 		public ApiSettings Api { get; set; }
+		public WebUISettings WebUI { get; set; }
 		public Observability Observability { get; set; }
 		public Developer Developer { get; set; }
 	}
@@ -67,8 +69,8 @@ namespace Common
 			OutputDirectory = Path.Join(Environment.CurrentDirectory, "output");
 			WorkingDirectory = Path.Join(Environment.CurrentDirectory, "working");
 
-			EnablePolling = true;
-			PollingIntervalSeconds = 3600;
+			EnablePolling = false;
+			PollingIntervalSeconds = 86400; // 1 day
 		}
 
 		[DisplayName("Output Directory")]
@@ -84,16 +86,17 @@ namespace Common
 		[DisplayName("Polling Interval in Seconds")]
 		[Description("The polling interval in seconds determines how frequently P2G should check for new workouts. Be warned, that setting this to a frequency of hourly or less may get you flagged by Peloton as a bad actor and they may reset your password.")]
 		public int PollingIntervalSeconds { get; set; }
+		[Obsolete]
 		public bool? PythonAndGUploadInstalled { get; set; }
 		public bool CloseWindowOnFinish { get; set; }
 
-		public static string DataDirectory = Path.Join(Environment.CurrentDirectory, "data");
-		public string FitDirectory => Path.Join(OutputDirectory, "fit");
-		public string JsonDirectory => Path.Join(OutputDirectory, "json");
-		public string TcxDirectory => Path.Join(OutputDirectory, "tcx");
-		public string FailedDirectory => Path.Join(OutputDirectory, "failed");
-		public string DownloadDirectory => Path.Join(WorkingDirectory, "downloaded");
-		public string UploadDirectory => Path.Join(WorkingDirectory, "upload");
+		public static string DataDirectory = Path.GetFullPath(Path.Join(Environment.CurrentDirectory, "data"));
+		public string FitDirectory => Path.GetFullPath(Path.Join(OutputDirectory, "fit"));
+		public string JsonDirectory => Path.GetFullPath(Path.Join(OutputDirectory, "json"));
+		public string TcxDirectory => Path.GetFullPath(Path.Join(OutputDirectory, "tcx"));
+		public string FailedDirectory => Path.GetFullPath(Path.Join(OutputDirectory, "failed"));
+		public string DownloadDirectory => Path.GetFullPath(Path.Join(WorkingDirectory, "downloaded"));
+		public string UploadDirectory => Path.GetFullPath(Path.Join(WorkingDirectory, "upload"));
 
 	}
 
@@ -169,6 +172,11 @@ namespace Common
 
 	public class Garmin
 	{
+		public Garmin()
+		{
+			UploadStrategy = UploadStrategy.NativeImplV1;
+		}
+
 		public string Email { get; set; }
 		public string Password { get; set; }
 		public bool Upload { get; set; }
@@ -192,7 +200,7 @@ namespace Common
 	{
 		public WebUISettings()
 		{
-			HostUrl = "http://localhost:8020";
+			HostUrl = "http://localhost";
 		}
 
 		public string HostUrl { get; set; }

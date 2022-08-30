@@ -54,7 +54,7 @@ namespace UnitTests.Conversion
 		}
 
 		[Test]
-		public void ConvertDistanceToMetersTest([Values("km","mi","ft", "KM","unknown")]string unit)
+		public void ConvertDistanceToMetersTest([Values("km","mi","ft", "KM", "m","unknown")]string unit)
 		{
 			var autoMocker = new AutoMocker();
 			var converter = autoMocker.CreateInstance<ConverterInstance>();
@@ -72,6 +72,7 @@ namespace UnitTests.Conversion
 				case "ft":
 					converted.Should().Be((float)value * 0.3048f);
 					break;
+				case "m":
 				default:
 					converted.Should().Be((float)value);
 					break;
@@ -105,7 +106,7 @@ namespace UnitTests.Conversion
 		}
 
 		[Test]
-		public void GetTotalDistanceTest_Distance_Is_Converted_To_Meters([Values("mi", "ft", "km")] string unit)
+		public void GetTotalDistanceTest_Distance_Is_Converted_To_Meters([Values("mi", "ft", "km", "m")] string unit)
 		{
 			var distance = 145;
 			var workoutSample = new WorkoutSamples();
@@ -137,7 +138,7 @@ namespace UnitTests.Conversion
 		}
 
 		[Test]
-		public void ConvertToMetersPerSecondTest_Is_Converted_To_MetersPerSecond([Values("mi", "ft", "km")] string unit)
+		public void ConvertToMetersPerSecondTest_Is_Converted_To_MetersPerSecond([Values("mi", "mph", "ft", "km", "m", "kph")] string unit)
 		{
 			var value = 145;
 			var workoutSample = new WorkoutSamples();
@@ -170,7 +171,7 @@ namespace UnitTests.Conversion
 		}
 
 		[Test]
-		public void GetMaxSpeedMetersPerSecond_MaxSpeed_Is_Converted([Values("mi", "ft", "km")] string unit)
+		public void GetMaxSpeedMetersPerSecond_MaxSpeed_Is_Converted([Values("mi", "mph", "ft", "km", "kph", "m")] string unit)
 		{
 			var speed = 15.2;
 			var workoutSample = new WorkoutSamples();
@@ -205,7 +206,7 @@ namespace UnitTests.Conversion
 		}
 
 		[Test]
-		public void GetAvgSpeedMetersPerSecond_MaxSpeed_Is_Converted([Values("mi", "ft", "km")] string unit)
+		public void GetAvgSpeedMetersPerSecond_MaxSpeed_Is_Converted([Values("mi", "mph", "ft", "km", "kph", "m")] string unit)
 		{
 			var speed = 15.2;
 			var workoutSample = new WorkoutSamples();
@@ -567,11 +568,47 @@ namespace UnitTests.Conversion
 			deviceInfo.Version.BuildMinor.Should().Be(0);
 		}
 
+		// Workout Object
+		// manual source
+		// workout source
+		// UserData Obect
+		// manual source
+		// workout source
+		class CyclingFtpScenarios
+		{
+			public static object[] Cases = 
+			{
+				new object[] { null, null, null },
+				new object[] { new Workout(), new UserData(), (ushort)0 },
+				new object[] { new Workout() {  Ftp_Info = new FTPInfo() { Ftp = 0} }, new UserData(), (ushort)0 },
+				new object[] { new Workout() {  Ftp_Info = new FTPInfo() { Ftp = 100} }, new UserData(), (ushort)100 },
+				new object[] { new Workout() {  Ftp_Info = new FTPInfo() { Ftp = 100, Ftp_Source = CyclingFtpSource.Ftp_Manual_Source} }, new UserData(), (ushort)95 },
+				new object[] { null, new UserData() { Cycling_Ftp = 1, Cycling_Workout_Ftp = 2, Estimated_Cycling_Ftp = 100}, (ushort)100 },
+				new object[] { null, new UserData() { Cycling_Ftp_Source = CyclingFtpSource.Ftp_Manual_Source, Cycling_Ftp = 100, Cycling_Workout_Ftp = 2, Estimated_Cycling_Ftp = 3}, (ushort)95 },
+				new object[] { null, new UserData() { Cycling_Ftp_Source = CyclingFtpSource.Ftp_Workout_Source, Cycling_Ftp = 1, Cycling_Workout_Ftp = 100, Estimated_Cycling_Ftp = 3}, (ushort)100 },
+				new object[] { null, new UserData() { Cycling_Ftp_Source = CyclingFtpSource.Ftp_Workout_Source, Cycling_Ftp = 1, Cycling_Workout_Ftp = 0, Estimated_Cycling_Ftp = 100}, (ushort)100 },
+				new object[] { null, new UserData() { Cycling_Ftp_Source = CyclingFtpSource.Ftp_Manual_Source, Cycling_Ftp = 0, Cycling_Workout_Ftp = 0, Estimated_Cycling_Ftp = 100}, (ushort)100 },
+			};
+		}
+		[TestCaseSource(typeof(CyclingFtpScenarios), nameof(CyclingFtpScenarios.Cases))]
+		public void GetCyclingFtp_Should_PickCorrectValue(Workout workout, UserData userData, ushort? expectedFtp)
+		{
+			// SETUP
+			var mocker = new AutoMocker();
+			var converter = mocker.CreateInstance<ConverterInstance>();
+
+			// ACT
+			var ftp = converter.GetCyclingFtp1(workout, userData);
+
+			// ASSERT
+			ftp.Should().Be(expectedFtp);
+		}
+
 		private class ConverterInstance : Converter<string>
 		{
 			public ConverterInstance(Settings settings, IFileHandling fileHandling) : base(settings, fileHandling) { }
 
-			protected override string Convert(Workout workout, WorkoutSamples workoutSamples)
+			protected override string Convert(Workout workout, WorkoutSamples workoutSamples, UserData userData)
 			{
 				throw new NotImplementedException();
 			}
@@ -653,12 +690,17 @@ namespace UnitTests.Conversion
 
 			public override ConvertStatus Convert(P2GWorkout workoutData)
 			{
-				return base.Convert(FileFormat.Fit, workoutData);
+				return base.ConvertForFormat(FileFormat.Fit, workoutData);
 			}
 
 			protected override void SaveLocalCopy(string sourcePath, string workoutTitle)
 			{
 				return;
+			}
+
+			public ushort? GetCyclingFtp1(Workout workout, UserData userData)
+			{
+				return base.GetCyclingFtp(workout, userData);
 			}
 		}
 	}

@@ -58,17 +58,40 @@ namespace Sync
 			{
 				recentWorkouts = await _pelotonService.GetRecentWorkoutsAsync(numWorkouts);
 			}
-			catch (Exception ex)
+			catch (ArgumentException ae)
 			{
-				_logger.Error(ex, "Failed to fetch recent workouts from Peleoton.");
-				activity?.AddTag("exception.message", ex.Message);
-				activity?.AddTag("exception.stacktrace", ex.StackTrace);
-				
+				var errorMessage = $"Failed to fetch recent workouts from Peleoton: {ae.Message}";
+
+				_logger.Error(ae, errorMessage);
+				activity?.AddTag("exception.message", ae.Message);
+				activity?.AddTag("exception.stacktrace", ae.StackTrace);
+
+				syncTime.SyncStatus = Status.UnHealthy;
+				syncTime.LastErrorMessage = errorMessage;
 				await _db.UpsertSyncStatusAsync(syncTime);
+
 				var response = new SyncResult();
 				response.SyncSuccess = false;
 				response.PelotonDownloadSuccess = false;
-				response.Errors.Add(new ErrorResponse() { Message = "Failed to fetch recent workouts from Peloton. Check logs for more details." });
+				response.Errors.Add(new ErrorResponse() { Message = $"{errorMessage}" });
+				return response;
+			}
+			catch (Exception ex)
+			{
+				var errorMessage = "Failed to fetch recent workouts from Peleoton.";
+
+				_logger.Error(ex, errorMessage);
+				activity?.AddTag("exception.message", ex.Message);
+				activity?.AddTag("exception.stacktrace", ex.StackTrace);
+
+				syncTime.SyncStatus = Status.UnHealthy;
+				syncTime.LastErrorMessage = errorMessage;
+				await _db.UpsertSyncStatusAsync(syncTime);
+
+				var response = new SyncResult();
+				response.SyncSuccess = false;
+				response.PelotonDownloadSuccess = false;
+				response.Errors.Add(new ErrorResponse() { Message = $"{errorMessage} Check logs for more details." });
 				return response;
 			}
 
@@ -104,6 +127,31 @@ namespace Sync
 
 			var response = new SyncResult();
 			var recentWorkouts = workoutIds.Select(w => new RecentWorkout() { Id = w }).ToList();
+
+			UserData? userData = null;
+			try
+			{
+				userData = await _pelotonService.GetUserDataAsync();
+
+			}
+			catch (ArgumentException ae)
+			{
+				var errorMessage = $"Failed to fetch recent workouts from Peleoton: {ae.Message}";
+
+				_logger.Error(ae, errorMessage);
+				activity?.AddTag("exception.message", ae.Message);
+				activity?.AddTag("exception.stacktrace", ae.StackTrace);
+
+				response.SyncSuccess = false;
+				response.PelotonDownloadSuccess = false;
+				response.Errors.Add(new ErrorResponse() { Message = $"{errorMessage}" });
+				return response;
+			}
+			catch (Exception e)
+			{
+				_logger.Error(e, "Failed to fetch UserData from Peloton. FTP info may be missing for certain non-class workout types (Just Ride).");
+			}
+
 			P2GWorkout[] workouts = { };
 			try
 			{
@@ -112,7 +160,7 @@ namespace Sync
 			}
 			catch (Exception e)
 			{
-				_logger.Error(e, "Failed to download workouts from Peleoton.");
+				_logger.Error(e, "Failed to download workouts from Peloton.");
 				response.SyncSuccess = false;
 				response.PelotonDownloadSuccess = false;
 				response.Errors.Add(new ErrorResponse() { Message = "Failed to download workouts from Peloton. Check logs for more details." });
@@ -121,6 +169,8 @@ namespace Sync
 
 			var filteredWorkouts = workouts.Where(w => 
 								{
+									if (w is null) return false;
+
 									if (exclude is null || exclude.Count == 0) return true;
 
 									if (exclude.Contains(w.WorkoutType))
@@ -141,6 +191,7 @@ namespace Sync
 				{
 					Parallel.ForEach(_converters, (converter) =>
 					{
+						workout.UserData = userData;
 						converter.Convert(workout);
 					});
 				});
@@ -162,14 +213,26 @@ namespace Sync
 				await _garminUploader.UploadToGarminAsync();
 				response.UploadToGarminSuccess = true;
 			}
-			catch (Exception e)
+			catch (ArgumentException ae)
 			{
-				_logger.Error(e, "GUpload returned an error code. Failed to upload workouts.");
-				_logger.Warning("GUpload failed to upload files. You can find the converted files at {@Path} \n You can manually upload your files to Garmin Connect, or wait for P2G to try again on the next sync job.", _config.App.OutputDirectory);
+				var errorMessage = $"Failed to upload to Garmin Connect: {ae.Message}";
+
+				_logger.Error(ae, errorMessage);
+				activity?.AddTag("exception.message", ae.Message);
+				activity?.AddTag("exception.stacktrace", ae.StackTrace);
 
 				response.SyncSuccess = false;
 				response.UploadToGarminSuccess = false;
-				response.Errors.Add(new ErrorResponse() { Message = "Failed to upload to Garmin Connect. Check logs for more details." });
+				response.Errors.Add(new ErrorResponse() { Message = $"{errorMessage}" });
+				return response;
+			}
+			catch (Exception e)
+			{
+				_logger.Error(e, "Failed to upload workouts to Garmin Connect. You can find the converted files at {@Path} \\n You can manually upload your files to Garmin Connect, or wait for P2G to try again on the next sync job.", _config.App.OutputDirectory);
+
+				response.SyncSuccess = false;
+				response.UploadToGarminSuccess = false;
+				response.Errors.Add(new ErrorResponse() { Message = "Failed to upload workouts to Garmin Connect. Check logs for more details." });
 				return response;
 			} finally
 			{

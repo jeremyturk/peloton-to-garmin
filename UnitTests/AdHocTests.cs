@@ -1,8 +1,13 @@
 ﻿using Common;
 using Common.Dto;
+using Common.Dto.Peloton;
 using Common.Helpers;
 using Conversion;
 using Dynastream.Fit;
+using Flurl;
+using Flurl.Http;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.VisualStudio.TestPlatform.ObjectModel.DataCollection;
 using Moq.AutoMock;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
@@ -42,30 +47,35 @@ namespace UnitTests
 		//	var email = "";
 		//	var password = "";
 
-		//var workoutId = "aaa6527fd5a74b7e8e2f8975c6025e60";
+		//	var workoutId = "";
+		//	var userId = "";
 
-		//	var client = new ApiClient(email, password, false);
+		//	var settings = new Settings()
+		//	{
+		//		Peloton = new ()
+		//		{
+		//			Email = email,
+		//			Password = password,
+		//		}
+		//	};
+		//	var config = new AppConfiguration();
+
+		//	var client = new ApiClient(settings, config);
 		//	await client.InitAuthAsync();
 
-		//	var workout = await client.GetWorkoutByIdAsync(workoutId);
+		//	//var recentWorkouts = await client.GetWorkoutsAsync(userId, 5, 0);
 		//	var workoutSamples = await client.GetWorkoutSamplesByIdAsync(workoutId);
-		//	var workoutSummary = await client.GetWorkoutSummaryByIdAsync(workoutId);
 
-		//	dynamic data = new JObject();
-		//	data.Workout = workout;
-		//	data.WorkoutSamples = workoutSamples;
-		//	data.WorkoutSummary = workoutSummary;
-
-		//	Log.Debug(data.ToString());
-		//	SaveRawData(data, workoutId, DataDirectory);
+		//	Log.Debug(workoutSamples.ToString());
+		//	SaveRawData(workoutSamples, workoutId, DataDirectory);
 		//}
 
 		//[Test]
 		//public async Task DeSerialize()
 		//{
-		//	var file = Path.Join(DataDirectory, "test.json");
+		//	var file = Path.Join(DataDirectory, "workout.json");
 		//	var _fileHandler = new IOWrapper();
-		//	var workout = _fileHandler.DeserializeJson<P2GWorkout>(file);
+		//	var workout = _fileHandler.DeserializeJson<RecentWorkouts>(file);
 		//}
 
 		//[Test]
@@ -106,6 +116,19 @@ namespace UnitTests
 			System.IO.File.WriteAllText(Path.Join(path, $"{workoutId}_workout.json"), data.ToString());
 		}
 
+		private async Task<JObject> GetRecentWorkoutsAsync(string userId, int numWorkouts = 3)
+		{
+			return await $"https://api.onepeloton.com/api/user/{userId}/workouts"
+			.SetQueryParams(new
+			{
+				limit = numWorkouts,
+				sort_by = "-created",
+				page = 0,
+				joins = "ride"
+			})
+			.GetJsonAsync<JObject>();
+		}
+
 		private class ConverterInstance : FitConverter
 		{
 			private IOWrapper fileHandler = new IOWrapper();
@@ -116,7 +139,7 @@ namespace UnitTests
 			public ICollection<Mesg> ConvertForTest(string path)
 			{
 				var workoutData = fileHandler.DeserializeJson<P2GWorkout>(path);
-				var converted = this.Convert(workoutData.Workout, workoutData.WorkoutSamples);
+				var converted = this.Convert(workoutData.Workout, workoutData.WorkoutSamples, workoutData.UserData);
 
 				return converted.Item2;
 			}
@@ -124,7 +147,7 @@ namespace UnitTests
 			public Tuple<string, ICollection<Mesg>> Convert(string path)
 			{
 				var workoutData = fileHandler.DeserializeJson<P2GWorkout>(path);
-				var converted = this.Convert(workoutData.Workout, workoutData.WorkoutSamples);
+				var converted = this.Convert(workoutData.Workout, workoutData.WorkoutSamples, workoutData.UserData);
 
 				return converted;
 			}

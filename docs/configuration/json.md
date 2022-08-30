@@ -7,7 +7,9 @@ nav_order: 0
 
 # Json Config File
 
-This is the preferred way to provide configuration details to P2G.  By default, P2G looks for a file named `configuration.local.json` in the same directory where the program is run.
+Based on your installation method, configuration may be provided via a `configuration.local.json` or it may be done via the user interface.  In the below documentation you will see the information for both the JSON config file, and the Web UI.
+
+By default, P2G looks for a file named `configuration.local.json` in the same directory where the program is run.
 
 The config file is written in JSON and supports hot-reload for all fields except the following:
 
@@ -16,13 +18,59 @@ The config file is written in JSON and supports hot-reload for all fields except
 
 The config file is organized into the below sections.
 
-| Section      | Description       |
-|:-------------|:------------------|
-| [App Config](#app-config) | This section provides global settings for the P2G application. |
-| [Format Config](#format-config) | This section provides settings related to conversions and what formats should be created/saved.  |
-| [Peloton Config](#peloton-config) | This section provides settings related to fetching workouts from Peloton.      |
-| [Garmin Config](#garmin-config) | This section provides settings related to uploading workouts to Garmin. |
-| [Observability Config](#observability-config) | This section provides settings related to Metrics, Logs, and Traces for monitoring purposes. |
+| Section      | Platforms | Description       |
+|:-------------|:----------|:------------------|
+| [Api Config](#api-config) | Web UI | This section provides global settings for the P2G Api. |
+| [WebUI Config](#webui-config) | Web UI | This section provides global settings for the P2G Web UI. |
+| [App Config](#app-config) | Headless | This section provides global settings for the P2G application. |
+| [Format Config](#format-config) | Headless | This section provides settings related to conversions and what formats should be created/saved.  |
+| [Peloton Config](#peloton-config) | Headless | This section provides settings related to fetching workouts from Peloton.      |
+| [Garmin Config](#garmin-config) | Headless | This section provides settings related to uploading workouts to Garmin. |
+| [Observability Config](#observability-config) | All | This section provides settings related to Metrics, Logs, and Traces for monitoring purposes. |
+
+## Api Config
+
+If you aren't running the Web UI version of P2G you can ignore this section.  This section lives in `webui.local.json`.
+
+```json
+ "Api": {
+      "HostUrl": "http://p2g-api"
+    }
+```
+
+| Field      | Required | Default | UI Setting Location | Description |
+|:-----------|:---------|:--------|:--------------------|:------------|
+| HostUrl | yes | `null` | none | The host and port for the Web UI to communicate with the Api. |
+
+### Advanced usage
+
+Typically this section is only needed in the `webui.local.json` so that the Web UI knows where to find the running Api.  However, if you have a unique setup and need to modify the Host and Port the Api binds to, then you can also provide this config section in the `api.local.json`.
+
+```json
+ "Api": {
+      "HostUrl": "http://localhost:8080"
+    }
+```
+
+| Field      | Required | Default | UI Setting Location | Description |
+|:-----------|:---------|:--------|:--------------------|:------------|
+| HostUrl | no | `http://localhost:80` | none | The host and port the Api should bind to and listen on. |
+
+## WebUI Config
+
+If you aren't running the Web UI version of P2G you can ignore this section.
+
+Most users should not need to add this section to their config. However, if you have a unique setup and need to modify the Host and Port the WebUI binds to, then you can provide this config section in the `webui.local.json`.
+
+```json
+ "WebUI": {
+      "HostUrl": "http://localhost:8080"
+    }
+```
+
+| Field      | Required | Default | UI Setting Location | Description |
+|:-----------|:---------|:--------|:--------------------|:------------|
+| HostUrl | no | `http://localhost:80` | none | The host and port the WebUI should bind to and listen on. |
 
 ## App Config
 
@@ -38,12 +86,12 @@ This section provides global settings for the P2G application.
   }
 ```
 
-| Field      | Required | Default | Description |
-|:-----------|:---------|:--------|:------------|
-| OutputDirectory | no | `$PWD/output` | Where downloaded and converted files should be saved to. |
-| EnablePolling  | no | `true` | `true` if you wish P2G to run continuously and poll Peloton for new workouts. |
-| PollingIntervalSeconds | no | 3600 | The polling interval in seconds determines how frequently P2G should check for new workouts. Be warned, that setting this to a frequency of hourly or less may get you flagged by Peloton as a bad actor and they may reset your password. |
-| CloseWindowOnFinish | no | `false` | `true` if you wish the console window to close automatically when the program finishes. Not that if you have Polling enabled the program will never 'finish' as it remains active to poll regularly. |
+| Field      | Required | Default | UI Setting Location | Description |
+|:-----------|:---------|:--------|:--------------------|:------------|
+| OutputDirectory | no | `$PWD/output` | `App > Advanced` | Where downloaded and converted files should be saved to. |
+| EnablePolling  | no | `true` | `App Tab` | `true` if you wish P2G to run continuously and poll Peloton for new workouts. |
+| PollingIntervalSeconds | no | 3600 | `App Tab` | The polling interval in seconds determines how frequently P2G should check for new workouts. Be warned, that setting this to a frequency of hourly or less may get you flagged by Peloton as a bad actor and they may reset your password. |
+| CloseWindowOnFinish | no | `false` | none | `true` if you wish the console window to close automatically when the program finishes. Not that if you have Polling enabled the program will never 'finish' as it remains active to poll regularly. |
 
 ## Format Config
 
@@ -67,19 +115,19 @@ This section provides settings related to conversions and what formats should be
   }
 ```
 
-| Field      | Required | Default | Description |
-|:-----------|:---------|:--------|:------------|
-| Fit | no | `false` | `true` indicates you wish downloaded workouts to be converted to FIT |
-| Json | no | `false` | `true` indicates you wish downloaded workouts to be converted to JSON  |
-| Tcx  | no | `false` | `true` indicates you wish downloaded workouts to be converted to TCX |
-| SaveLocalCopy | no | `false` | `true` will save any converted workouts to your specified [OutputDirectory](#app-config) |
-| IncludeTimeInHRZones | no | `false` | **Only use this if you are unable to configure your Max HR on Garmin Connect.** When set to True, P2G will attempt to capture the time spent in each HR Zone per the data returned by Peloton. See [understanding custom zones](#understanding-custom-zones).
-| IncludePowerInHRZones  | no | `false` | **Only use this if you are unable to configure your FTP and Power Zones on Garmin Connect.** When set to True, P2G will attempt to capture the time spent in each Power Zone per the data returned by Peloton. See [understanding custom zones](#understanding-custom-zones). |
-| DeviceInfoPath | no | `null` | The path to your `deviceInfo.xml` file. See [providing device info](#custom-device-info) |
-| Cycling | no | `null` | Configuration specific to Cycling workouts. |
-| Cycling.PreferredLapType | no | `Default` | The preferred [lap type to use](#lap-types). |
-| Running | no | `null` | Configuration specific to Running workouts. |
-| Running.PreferredLapType | no | `Default` | The preferred [lap type to use](#lap-types). |
+| Field      | Required | Default | UI Setting Location | Description |
+|:-----------|:---------|:--------|:--------------------|:------------|
+| Fit | no | `false` | `Conversion Tab` | `true` indicates you wish downloaded workouts to be converted to FIT |
+| Json | no | `false` | `Conversion Tab` | `true` indicates you wish downloaded workouts to be converted to JSON. This will automatically save a local copy when enabled. |
+| Tcx  | no | `false` | `Conversion Tab` | `true` indicates you wish downloaded workouts to be converted to TCX |
+| SaveLocalCopy | no | `false` | `Conversion > Advanced` | `true` will save any converted workouts to your specified [OutputDirectory](#app-config) |
+| IncludeTimeInHRZones | no | `false` | `Conversion > Advanced` | **Only use this if you are unable to configure your Max HR on Garmin Connect.** When set to True, P2G will attempt to capture the time spent in each HR Zone per the data returned by Peloton. See [understanding custom zones](#understanding-custom-zones).
+| IncludePowerInHRZones  | no | `false` | `Conversion > Advanced` | **Only use this if you are unable to configure your FTP and Power Zones on Garmin Connect.** When set to True, P2G will attempt to capture the time spent in each Power Zone per the data returned by Peloton. See [understanding custom zones](#understanding-custom-zones). |
+| DeviceInfoPath | no | `null` | `Conversion > Advanced` | The path to your `deviceInfo.xml` file. See [providing device info](#custom-device-info) |
+| Cycling | no | `null` | none | Configuration specific to Cycling workouts. |
+| Cycling.PreferredLapType | no | `Default` | `Conversion Tab` | The preferred [lap type to use](#lap-types). |
+| Running | no | `null` | none | Configuration specific to Running workouts. |
+| Running.PreferredLapType | no | `Default` | `Conversion Tab` | The preferred [lap type to use](#lap-types). |
 
 ### Understanding Custom Zones
 
@@ -130,12 +178,12 @@ This section provides settings related to fetching workouts from Peloton.
 
 ⚠️ Your username and password for Peloton and Garmin Connect are stored in clear text, which **is not secure**. Please be aware of the risks. ⚠️
 
-| Field      | Required | Default | Description |
-|:-----------|:---------|:--------|:------------|
-| Email | **yes** | `null` | Your Peloton email used to sign in |
-| Password | **yes** | `null` | Your Peloton password used to sign in |
-| NumWorkoutsToDownload | no | 5 | The default number of workouts to download. See [choosing number of workouts to download](#choosing-number-of-workouts-to-download).  Set this to `0` if you would like P2G to prompt you each time for a number to download. |
-| ExcludeWorkoutTypes | no | none | A comma separated list of workout types that you do not want P2G to download/convert/upload. See [example use cases](#exclude-workout-types) below. |
+| Field      | Required | Default | UI Setting Location | Description |
+|:-----------|:---------|:--------|:--------------------|:------------|
+| Email | **yes** | `null` | `Peloton Tab` | Your Peloton email used to sign in |
+| Password | **yes** | `null` | `Peloton Tab` | Your Peloton password used to sign in |
+| NumWorkoutsToDownload | no | 5 | `Peloton Tab` | The default number of workouts to download. See [choosing number of workouts to download](#choosing-number-of-workouts-to-download).  Set this to `0` if you would like P2G to prompt you each time for a number to download. |
+| ExcludeWorkoutTypes | no | none | `Peloton Tab` | A comma separated list of workout types that you do not want P2G to download/convert/upload. See [example use cases](#exclude-workout-types) below. |
 
 ### Choosing Number of Workouts To Download
 
@@ -151,18 +199,18 @@ Example use cases:
 The available values are:
 
 ```json
-		Cycling
-		BikeBootcamp
-		TreadmillRunning
-		OutdoorRunning
-		TreadmillWalking
-		OutdoorWalking
-		Cardio
-		Circuit
-		Strength
-		Stretching
-		Yoga
-		Meditation
+  Cycling
+  BikeBootcamp
+  TreadmillRunning
+  OutdoorRunning
+  TreadmillWalking
+  OutdoorWalking
+  Cardio
+  Circuit
+  Strength
+  Stretching
+  Yoga
+  Meditation
 ```
 
 ## Garmin Config
@@ -181,13 +229,13 @@ This section provides settings related to uploading workouts to Garmin.
 
 ⚠️ Your username and password for Peloton and Garmin Connect are stored in clear text, which **is not secure**. Please be aware of the risks. ⚠️
 
-| Field      | Required | Default | Description |
-|:-----------|:---------|:--------|:------------|
-| Email | **yes - if Upload=true** | `null` | Your Garmin email used to sign in |
-| Password | **yes - if Upload=true** | `null` | Your Garmin password used to sign in |
-| Upload | no | `false` |  `true` indicates you wish downloaded workouts to be automatically uploaded to Garmin for you. |
-| FormatToUpload | no | `fit` | Valid values are `fit` or `tcx`. Ensure the format you specify here is also enabled in your [Format config](#format-config) |
-| UploadStrategy | **yes if Upload=true** | `null` |  Allows configuring different upload strategies for syncing with Garmin. Valid values are `[0 - PythonAndGuploadInstalledLocally, 1 - WindowsExeBundledPython, 2 - NativeImplV1]`. See [upload strategies](#upload-strategies) for more info. |
+| Field      | Required | Default | UI Setting Location | Description |
+|:-----------|:---------|:--------|:--------------------|:------------|
+| Email | **yes - if Upload=true** | `null` | `Garmin Tab` | Your Garmin email used to sign in |
+| Password | **yes - if Upload=true** | `null` | `Garmin Tab` | Your Garmin password used to sign in |
+| Upload | no | `false` | `Garmin Tab` |  `true` indicates you wish downloaded workouts to be automatically uploaded to Garmin for you. |
+| FormatToUpload | no | `fit` | `Garmin Tab > Advanced` | Valid values are `fit` or `tcx`. Ensure the format you specify here is also enabled in your [Format config](#format-config) |
+| UploadStrategy | **yes if Upload=true** | `null` |  `Garmin Tab > Advanced` |  Allows configuring different upload strategies for syncing with Garmin. Valid values are `[0 - PythonAndGuploadInstalledLocally, 1 - WindowsExeBundledPython, 2 - NativeImplV1]`. See [upload strategies](#upload-strategies) for more info. |
 
 ### Upload Strategies
 
@@ -290,8 +338,14 @@ If you are using Docker, ensure you have exposed the port from your container.
 
 ```json
 "Serilog": {
-      "Using": [ "Serilog.Sinks.Console", "Serilog.Sinks.File", "Serilog.Sinks.Elasticsearch", "Serilog.Sinks.Grafana.Loki" ],
-      "MinimumLevel": "Debug",
+      "Using": [ "Serilog.Sinks.Console", "Serilog.Sinks.File", "Serilog.Sinks.Grafana.Loki" ],
+      "MinimumLevel": {
+        "Default": "Information",
+        "Override": {
+          "Microsoft": "Error",
+          "System": "Error"
+        }
+      },
       "WriteTo": [
         { "Name": "Console" },
         {
@@ -300,13 +354,6 @@ If you are using Docker, ensure you have exposed the port from your container.
             "path": "./output/log.txt",
             "rollingInterval": "Day",
             "retainedFileCountLimit": 7
-          }
-        },
-        {
-          "Name": "Elasticsearch",
-          "Args": {
-            "nodeUris": "http://192.168.1.95:9200",
-            "indexFormat": "p2g-logs-{0:yyyy.MM.dd}"
           }
         },
         {

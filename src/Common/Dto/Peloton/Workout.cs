@@ -52,7 +52,7 @@ namespace Common.Dto.Peloton
 		public FTPInfo Ftp_Info { get; set; }
 		public string Device_Type_Display_Name { get; set; }
 		public Ride Ride { get; set; }
-		public bool Is_Skup_Intro_Available { get; set; }
+		public bool Is_Skip_Intro_Available { get; set; }
 		// total hr zones durations
 		// average effort score
 
@@ -60,7 +60,15 @@ namespace Common.Dto.Peloton
 
 	public class FTPInfo
 	{
-		public int Ftp { get; set; }
+		/// <summary>
+		/// When Source == Ftp_Workout_Source then this is the true FTP
+		/// When Source == Ftp_Manual_Source then calculate FTP x .95
+		///  - This is not truly the users FTP. This the max 20min avg output.
+		/// </summary>
+		public ushort Ftp { get; set; }
+		[JsonConverter(typeof(JsonStringEnumConverter))]
+		public CyclingFtpSource? Ftp_Source { get; set; }
+		public string Ftp_Workout_Id { get; set; }
 	}
 
 	public enum FitnessDiscipline

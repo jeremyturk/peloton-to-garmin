@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Garmin
 {
-    public class ApiClient
+	public class ApiClient
 	{
 		private const string BASE_URL = "https://connect.garmin.com";
 		private const string SSO_URL = "https://sso.garmin.com";
@@ -44,6 +44,8 @@ namespace Garmin
 		/// </summary>
 		public async Task InitAuth()
 		{
+			GarminUploader.ValidateConfig(_config);
+
 			object queryParams = new
 			{
 				clientId = "GarminConnect",
@@ -102,6 +104,7 @@ namespace Garmin
 								.WithHeader("origin", ORIGIN)
 								.SetQueryParams(queryParams)
 								.WithCookies(_jar)
+								.StripSensitiveDataFromLogging(_config.Garmin.Email, _config.Garmin.Password)
 								.PostUrlEncodedAsync(loginData)
 								.ReceiveString();
 			}
@@ -118,8 +121,8 @@ namespace Garmin
 				throw new Exception("Failed to find Garmin auth cookie.");
 			}
 
-			//Try to find the full post login url in response
-		   var regex2 = new Regex("var response_url(\\s+) = (\\\"|\\').*?ticket=(?<ticket>[\\w\\-]+)(\\\"|\\')");
+			// Try to find the full post login url in response
+			var regex2 = new Regex("var response_url(\\s+) = (\\\"|\\').*?ticket=(?<ticket>[\\w\\-]+)(\\\"|\\')");
 			var match = regex2.Match(authResponse);
 			if (!match.Success)
 			{
@@ -146,6 +149,7 @@ namespace Garmin
 				var authResponse2 = await BASE_URL
 							.WithCookies(_jar)
 							.SetQueryParams(queryParams)
+							.StripSensitiveDataFromLogging(_config.Garmin.Email, _config.Garmin.Password)
 							.GetStringAsync();
 			}
 			catch (FlurlHttpException e)
@@ -161,6 +165,7 @@ namespace Garmin
 							.WithHeader("User-Agent", USERAGENT)
 							.WithHeader("origin", ORIGIN)
 							.WithCookies(_jar)
+							.StripSensitiveDataFromLogging(_config.Garmin.Email, _config.Garmin.Password)
 							.GetJsonAsync();
 			}
 			catch (FlurlHttpException e)
@@ -368,7 +373,7 @@ namespace Garmin
 
 		// TODO: I bet we can do multiple files at once
 		// https://github.com/tmenier/Flurl/issues/608
-		
+
 		public async Task<UploadResponse> UploadActivity(string filePath, string format)
 		{
 			var fileName = Path.GetFileName(filePath);
@@ -378,9 +383,9 @@ namespace Garmin
 				.WithHeader("origin", ORIGIN)
 				.WithHeader("User-Agent", USERAGENT)
 				.AllowHttpStatus("2xx,409")
-				.PostMultipartAsync((data) => 
+				.PostMultipartAsync((data) =>
 				{
-					data.AddFile("\"file\"", path: filePath, contentType: "application/octet-stream", fileName:$"\"{fileName}\"");
+					data.AddFile("\"file\"", path: filePath, contentType: "application/octet-stream", fileName: $"\"{fileName}\"");
 				})
 				.ReceiveJson<UploadResponse>();
 
@@ -397,7 +402,8 @@ namespace Garmin
 							if (message.Code == 202)
 							{
 								_logger.Information("Activity already uploaded {garminWorkout}", result.FileName);
-							} else
+							}
+							else
 							{
 								_logger.Error("Failed to upload activity to Garmin. Message: {errorMessage}", message);
 							}
@@ -414,7 +420,7 @@ namespace Garmin
 		/// </summary>
 		public async Task<string> UploadActivities(ICollection<string> filePaths, string format)
 		{
-			
+
 			var response = await $"{UPLOAD_URL}/{format}"
 				.WithCookies(_jar)
 				.WithHeader("NK", "NT")
