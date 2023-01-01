@@ -7,10 +7,12 @@ using Serilog.Events;
 using Prometheus;
 using Common.Observe;
 using Common.Stateful;
+using Common.Http;
 
 ///////////////////////////////////////////////////////////
 /// STATICS
 ///////////////////////////////////////////////////////////
+Statics.AppType = Constants.WebUIName;
 Statics.MetricPrefix = Constants.WebUIName;
 Statics.TracingService = Constants.WebUIName;
 
@@ -24,10 +26,7 @@ var configProvider = builder.Configuration.AddJsonFile(Path.Join(Environment.Cur
 				.AddCommandLine(args);
 
 var config = new AppConfiguration();
-builder.Configuration.GetSection("Api").Bind(config.Api);
-builder.Configuration.GetSection("WebUI").Bind(config.WebUI);
-builder.Configuration.GetSection(nameof(Observability)).Bind(config.Observability);
-builder.Configuration.GetSection(nameof(Developer)).Bind(config.Developer);
+ConfigurationSetup.LoadConfigValues(builder.Configuration, config);
 
 builder.WebHost.UseUrls(config.WebUI.HostUrl);
 
@@ -45,39 +44,31 @@ builder.Host.UseSerilog((ctx, logConfig) =>
 
 builder.Services.AddScoped<IApiClient>(sp => new ApiClient(config.Api.HostUrl));
 builder.Services.AddHxServices();
+builder.Services.AddHxMessenger();
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 
 FlurlConfiguration.Configure(config.Observability, 30);
-Tracing.EnableTracing(builder.Services, config.Observability.Jaeger);
+Tracing.EnableWebUITracing(builder.Services, config.Observability.Jaeger);
 
 Log.Logger = new LoggerConfiguration()
 				.ReadFrom.Configuration(builder.Configuration, sectionName: $"{nameof(Observability)}:Serilog")
 				.Enrich.FromLogContext()
 				.CreateLogger();
 
-var runtimeVersion = Environment.Version.ToString();
-var os = Environment.OSVersion.Platform.ToString();
-var osVersion = Environment.OSVersion.VersionString;
-var version = Constants.AppVersion;
-
-Prometheus.Metrics.CreateGauge($"{Statics.MetricPrefix}_build_info", "Build info for the running instance.", new GaugeConfiguration()
-{
-	LabelNames = new[] { Common.Observe.Metrics.Label.Version, Common.Observe.Metrics.Label.Os, Common.Observe.Metrics.Label.OsVersion, Common.Observe.Metrics.Label.DotNetRuntime }
-}).WithLabels(version, os, osVersion, runtimeVersion)
-.Set(1);
-
-Log.Information("P2G WebUI Version: {@Version}", version);
-Log.Information("Operating System: {@Os}", osVersion);
-Log.Information("DotNet Runtime: {@DotnetRuntime}", runtimeVersion);
+Logging.LogSystemInformation();
+Common.Observe.Metrics.CreateAppInfo();
 
 ///////////////////////////////////////////////////////////
 /// APP
 ///////////////////////////////////////////////////////////
 
 var app = builder.Build();
+
+// Setup initial Tracing Source
+Tracing.Source = new(Statics.TracingService);
 
 if (Log.IsEnabled(LogEventLevel.Verbose))
 	app.UseSerilogRequestLogging();

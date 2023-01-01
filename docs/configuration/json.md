@@ -30,11 +30,13 @@ The config file is organized into the below sections.
 
 ## Api Config
 
-If you aren't running the Web UI version of P2G you can ignore this section.  This section lives in `webui.local.json`.
+If you aren't running the Web UI version of P2G you can ignore this section.  
+
+This section lives in `webui.local.json`.
 
 ```json
  "Api": {
-      "HostUrl": "http://p2g-api"
+      "HostUrl": "http://p2g-api:8080"
     }
 ```
 
@@ -48,7 +50,7 @@ Typically this section is only needed in the `webui.local.json` so that the Web 
 
 ```json
  "Api": {
-      "HostUrl": "http://localhost:8080"
+      "HostUrl": "http://*:8080"
     }
 ```
 
@@ -60,11 +62,11 @@ Typically this section is only needed in the `webui.local.json` so that the Web 
 
 If you aren't running the Web UI version of P2G you can ignore this section.
 
-Most users should not need to add this section to their config. However, if you have a unique setup and need to modify the Host and Port the WebUI binds to, then you can provide this config section in the `webui.local.json`.
+You can provide this config section in the `webui.local.json`.
 
 ```json
  "WebUI": {
-      "HostUrl": "http://localhost:8080"
+      "HostUrl": "http://*:8080"
     }
 ```
 
@@ -82,7 +84,8 @@ This section provides global settings for the P2G application.
     "EnablePolling": true,
     "PollingIntervalSeconds": 86400,
     "PythonAndGUploadInstalled": true,
-    "CloseWindowOnFinish": false
+    "CloseWindowOnFinish": false,
+    "CheckForUpdates": true
   }
 ```
 
@@ -90,8 +93,9 @@ This section provides global settings for the P2G application.
 |:-----------|:---------|:--------|:--------------------|:------------|
 | OutputDirectory | no | `$PWD/output` | `App > Advanced` | Where downloaded and converted files should be saved to. |
 | EnablePolling  | no | `true` | `App Tab` | `true` if you wish P2G to run continuously and poll Peloton for new workouts. |
-| PollingIntervalSeconds | no | 3600 | `App Tab` | The polling interval in seconds determines how frequently P2G should check for new workouts. Be warned, that setting this to a frequency of hourly or less may get you flagged by Peloton as a bad actor and they may reset your password. |
+| PollingIntervalSeconds | no | 86400 | `App Tab` | The polling interval in seconds determines how frequently P2G should check for new workouts. Be warned, that setting this to a frequency of hourly or less may get you flagged by Peloton as a bad actor and they may reset your password. The default is set to Daily. |
 | CloseWindowOnFinish | no | `false` | none | `true` if you wish the console window to close automatically when the program finishes. Not that if you have Polling enabled the program will never 'finish' as it remains active to poll regularly. |
+| CheckForUpdates | no | `true` | `App Tab` | `true` if P2G should check for updates and write a log message if a new release is available. If using the UI this message will display there as well. |
 
 ## Format Config
 
@@ -107,10 +111,13 @@ This section provides settings related to conversions and what formats should be
     "IncludeTimeInPowerZones": false,
     "DeviceInfoPath": "./deviceInfo.xml",
     "Cycling": {
-      "PreferredLapType": "Class_Targets"      
+      "PreferredLapType": "Class_Targets"
     },
     "Running": {
       "PreferredLapType": "Distance"
+    },
+    "Rowing": {
+      "PreferredLapType": "Class_Segments"
     }
   }
 ```
@@ -128,6 +135,8 @@ This section provides settings related to conversions and what formats should be
 | Cycling.PreferredLapType | no | `Default` | `Conversion Tab` | The preferred [lap type to use](#lap-types). |
 | Running | no | `null` | none | Configuration specific to Running workouts. |
 | Running.PreferredLapType | no | `Default` | `Conversion Tab` | The preferred [lap type to use](#lap-types). |
+| Rowing | no | `null` | none | Configuration specific to Rowing workouts. |
+| Rowing.PreferredLapType | no | `Default` | `Conversion Tab` | The preferred [lap type to use](#lap-types). |
 
 ### Understanding Custom Zones
 
@@ -161,7 +170,7 @@ P2G supports several different strategies for creating Laps in Garmin Connect.  
 |:----------|:-------------|:------------|
 | Class Targets | `Class_Targets` | If the Peloton data includes Target Cadence information, then laps will be created to match any time the Target Cadence changed.  You must use this strategy if you want the Target Cadence to show up in Garmin on the Cadence chart. |
 | Class Segments | `Class_Segments` | If the Peloton data includes Class Segment information, then laps will be created to match each segment: Warm Up, Cycling, Weights, Cool Down, etc. |
-| Distance | `Distance` | P2G will caclulate Laps based on distance for each 1mi or 1km based on your distance setting in Peloton. |
+| Distance | `Distance` | P2G will caclulate Laps based on distance for each 1mi, 1km, or 500m (for Row only) based on your distance setting in Peloton. |
 
 ## Peloton Config
 
@@ -176,7 +185,11 @@ This section provides settings related to fetching workouts from Peloton.
   }
 ```
 
-⚠️ Your username and password for Peloton and Garmin Connect are stored in clear text, which **is not secure**. Please be aware of the risks. ⚠️
+⚠️ Console or Docker Headless: Your username and password for Peloton and Garmin Connect are stored in clear text, which **is not secure**. Please be aware of the risks. ⚠️
+
+⚠️ WebUI version 3.3.0: Credentials are stored **encrypted**.
+
+⚠️ GitHub Actions: Credentials are stored **encrypted**.
 
 | Field      | Required | Default | UI Setting Location | Description |
 |:-----------|:---------|:--------|:--------------------|:------------|
@@ -227,7 +240,11 @@ This section provides settings related to uploading workouts to Garmin.
   }
 ```
 
-⚠️ Your username and password for Peloton and Garmin Connect are stored in clear text, which **is not secure**. Please be aware of the risks. ⚠️
+⚠️ Console or Docker Headless: Your username and password for Peloton and Garmin Connect are stored in clear text, which **is not secure**. Please be aware of the risks. ⚠️
+
+⚠️ WebUI version 3.3.0: Credentials are stored **encrypted**.
+
+⚠️ GitHub Actions: Credentials are stored **encrypted**.
 
 | Field      | Required | Default | UI Setting Location | Description |
 |:-----------|:---------|:--------|:--------------------|:------------|
@@ -303,7 +320,7 @@ The Observability config section contains three main sub-sections:
 | Field      | Required | Default | Description |
 |:-----------|:---------|:--------|:------------|
 | Enabled | no | `false` | Whether or not to expose metrics. Metrics will be available at `http://localhost:{port}/metrics` |
-| Port | no | `false` | The port the metrics endpoint should be served on. |
+| Port | no | `80` | The port the metrics endpoint should be served on. Only valid for Console mode, not Api/WebUI |
 
 If you are using Docker, ensure you have exposed the port from your container.
 
