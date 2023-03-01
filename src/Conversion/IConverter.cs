@@ -240,6 +240,19 @@ namespace Conversion
 			}
 		}
 
+		public static float ConvertWeightToKilograms(double value, string unit)
+		{
+			var weightUnit = UnitHelpers.GetWeightUnit(unit);
+			switch (weightUnit)
+			{
+				case WeightUnit.Pounds:
+					return (float)(value * 0.453592);
+				case WeightUnit.Kilograms:
+				default:
+					return (float)value;
+			}
+		}
+
 		public static float GetTotalDistance(WorkoutSamples workoutSamples)
 		{
 			var distanceSummary = GetDistanceSummary(workoutSamples);
@@ -290,7 +303,7 @@ namespace Conversion
 			return distanceSummary;
 		}
 
-		protected Summary GetCalorieSummary(WorkoutSamples workoutSamples)
+		public static Summary GetCalorieSummary(WorkoutSamples workoutSamples)
 		{
 			if (workoutSamples?.Summaries is null)
 			{
@@ -300,10 +313,16 @@ namespace Conversion
 
 			var summaries = workoutSamples.Summaries;
 			var caloriesSummary = summaries.FirstOrDefault(s => s.Slug == "calories");
-			if (caloriesSummary is null)
-				_logger.Verbose("No calories slug found.");
+			if (caloriesSummary is not null)
+				return caloriesSummary;
 
-			return caloriesSummary;
+			// calories may have been provided by Apple Watch
+			caloriesSummary = summaries.FirstOrDefault(s => s.Slug == "total_calories");
+			if (caloriesSummary is not null)
+				return caloriesSummary;
+
+			_logger.Verbose("No calories slug found.");
+			return null;
 		}
 
 		protected float GetMaxSpeedMetersPerSecond(WorkoutSamples workoutSamples)
